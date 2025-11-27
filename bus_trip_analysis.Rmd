@@ -1,30 +1,136 @@
 ---
-title: "Statistical Analysis of Daily Bus Trips to and from University"
+title: "The Commute Chronicles"
+subtitle: "An Analysis of Travel Efficiency, Weather Impacts, and Crowding"
 author: "Opeoluwa Daniel Oyedeji"
-date: "`r Sys.Date()`"
-output: pdf_document
+date: "December 5, 2025"
+output:
+  pdf_document:
+    toc: true
+    toc_depth: 2
+    number_sections: true
+    highlight: tango
+    df_print: kable
+    extra_dependencies: ["float"]
+fontsize: 11pt
+geometry: margin=1in
+urlcolor: blue
+header-includes:
+  - \usepackage[font=small,labelfont=bf]{caption}
+  - \usepackage{mathpazo}
+  - \linespread{1.05}
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(fig.pos="H", out.extra="")
 ```
 
-## R Markdown
+# Introduction
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+# Methods and Results
 
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+## Exploratory Data Analysis
 
-```{r cars}
-summary(cars)
+### Load Data {.unnumbered}
+
+```{r loadData}
+df <- read.csv("bus_trip_data.csv")
+df$date <- as.Date(df$date) # Convert date to a format suitable for R
 ```
 
-## Including Plots
+The data has `r ncol(df)` columns and `r nrow(df)` rows. To ensure the table fits within the document margins, the data set is displayed below in two parts: the "To Campus" details and the "To Home" details.
 
-You can also embed plots, for example:
-
-```{r pressure, echo=FALSE}
-plot(pressure)
+```{r display-table-1, echo=FALSE}
+df_display_1 <- df[ , 1:5]
+head(df_display_1, 2)
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+```{r display-table-2, echo=FALSE}
+df_display_2 <- df[ , 6:10]
+head(df_display_2, 2)
+```
+
+
+```{r delete-display-variables, include=FALSE}
+# Remove them to keep the environment clean
+rm(df_display_1, df_display_2)
+```
+
+### Visual Inspection of Trends {.unnumbered}
+
+Before running any complex statistical tests, we visualize the raw data to understand its shape. We are looking for two things: the **distribution** of the data (is it bell-shaped?) and any **trends** over time (is traffic getting worse?).
+
+```{r histogram-side, echo=FALSE, fig.show="hold", out.width="50%", fig.cap="Histograms displaying the distribution of travel times for trips to campus (left) and trips to home (right) with 10-minute bin intervals."}
+par(mar = c(4, 4, 1, .1))
+
+hist(df$dur_to_campus, 
+     main = "Distribution of Commute Duration to Campus",
+     xlab = "Duration (Minutes)", 
+     col = "lightblue", 
+     border = "white",
+     breaks = 10)
+
+hist(df$dur_to_home,
+     main = "Distribution of Commute Duration to Home",
+     xlab = "Duration (Minutes)", 
+     col = "salmon", 
+     border = "white",
+     breaks = 10)
+```
+
+An examination of the distributional shape highlights the following patterns:
+
+- Both histograms exhibit a *positive skew* and a detached bar at the far right, indicating a *potential outlier* that may need to be addressed in our statistical tests.
+
+- Both histograms are *unimodal* with the mode being around the *120-130 minute interval*.
+
+
+```{r scatter-plot-side, echo=FALSE, fig.show="hold", out.width="50%", fig.cap="Scatter plots tracking daily commute durations for trips to campus (left) and return trips to home (right) over the observed period."}
+par(mar = c(4, 4, 1, .1))
+
+plot(df$date, df$dur_to_campus,
+     main = "Commute Duration Over Time To Campus",
+     xlab = "Date",
+     ylab = "Duration (Minutes)",
+     pch = 19,
+     col = "lightblue",
+     frame.plot = FALSE)
+
+plot(df$date, df$dur_to_home,
+     main = "Commute Duration Over Time To Home",
+     xlab = "Date",
+     ylab = "Duration (Minutes)",
+     pch = 19,
+     col = "salmon",
+     frame.plot = FALSE)
+```
+
+Plotting the commute durations over time highlights a stark contrast in stability between the two journeys:
+
+- Trips to campus appear stable over time, showing only random noise without a noticeable increase or decrease in duration.
+
+- Trips to home exhibit high variance, with widely dispersed data points, suggesting unpredictable delays that warrant further statistical testing.
+
+```{r stacked-bar-side, echo=FALSE, fig.cap="Stacked bar chart showing the proportion of crowded UniLink buses to home during clear weather versus rain.", out.width="70%", fig.align="center"}
+# 'Rain' on the X-axis and 'Crowded' stacked as the bars
+counts <- table(df$crowded_unilink_to_home, df$rain_to_home)
+
+# Rename the rows & cols for a cleaner plot text
+colnames(counts) <- c("No Rain", "Rain")
+rownames(counts) <- c("Not Crowded", "Crowded")
+
+barplot(counts,
+        main = "Bus Crowding vs. Weather Conditions",
+        xlab = "Weather Condition",
+        ylab = "Number of Trips",
+        col = c("lightblue", "salmon"),
+        legend = rownames(counts),
+        args.legend = list(x = "topleft", bty = "n"))
+
+rm(counts)
+```
+
+An analysis of the interaction between weather and bus capacity suggests a strong correlation:
+
+- **On clear days**, the distribution is balanced, with the bus being crowded roughly half the time.
+
+- **On rainy days**, the vast majority of trips experience overcrowding, likely due to an increase in students choosing public transport over walking or cycling.
