@@ -6,7 +6,7 @@ date: "December 5, 2025"
 output:
   bookdown::pdf_document2:
     toc: true
-    toc_depth: 2
+    toc_depth: 3
     number_sections: true
     highlight: pygments
     df_print: kable
@@ -16,12 +16,13 @@ geometry: margin=1in
 urlcolor: blue
 header-includes:
   - \usepackage[font=small,labelfont=bf]{caption}
-  - \usepackage{mathpazo}
-  - \linespread{1.05}
+  - \usepackage[default]{lato}
+  - \usepackage[scale=0.9]{sourcecodepro}
+  - \usepackage[T1]{fontenc}
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(fig.pos="H", out.extra="")
+knitr::opts_chunk$set(fig.pos="H", fig.showtext = TRUE, out.extra="", dev="cairo_pdf")
 ```
 
 # Introduction
@@ -30,7 +31,7 @@ knitr::opts_chunk$set(fig.pos="H", out.extra="")
 
 ## Exploratory Data Analysis
 
-### Load Data {.unnumbered}
+### Dataset Overview
 
 ```{r loadData}
 df <- read.csv("bus_trip_data.csv")
@@ -55,7 +56,7 @@ head(df_display_2, 1)
 rm(df_display_1, df_display_2)
 ```
 
-### Visual Inspection of Trends {.unnumbered}
+### Visual Inspection of Trends
 
 Before running any complex statistical tests, we visualize the raw data to understand its shape. We are looking for two things: the **distribution** of the data (e.g. is it bell-shaped?) and any **trends** over time (e.g. is traffic getting worse?).
 
@@ -135,4 +136,60 @@ An analysis of the interaction between weather and bus capacity (Figure \@ref(fi
 
 - **On rainy days**, the vast majority of trips experience overcrowding, likely due to an increase in students choosing public transport over walking or cycling.
 
-## Hypothesis Testing
+## Hypothesis Testing and Methodology
+
+While the exploratory analysis highlighted potential trends, such as the volatility of the evening commute and the correlation between rain and crowding, visual inspection alone is insufficient to draw firm conclusions. In this section, we define the specific hypotheses derived from our observations and outline the statistical methods selected to test them.
+
+### Comparing Commute Directions (Paired t-test)
+
+The scatter plot (Figure \@ref(fig:scatter-plot-side)) suggested that the journey home is not only more volatile but potentially longer on average than the morning commute. To confirm this, we analyse the difference in means between the two trips.
+
+#### Method Justification:{.unnumbered}
+
+Since each day (or record) consists of a trip to campus and a trip to home, a paired student t-test is the appropriate method to control for day-specific variance (e.g., a generally traffic-heavy day affecting both trips).
+
+- $H_0$ (Null): There is no significant difference in mean duration between the trip to campus and the trip home ($\mu_{campus} = \mu_{home}$).
+
+- $H_a$ (Alternative): The trip home takes significantly longer than the trip to campus ($\mu_{home} > \mu_{campus}$).
+
+### Predictability of Arrival Times (Linear Regression)
+
+We aim to understand the relationship between departure time and arrival time. Specifically, we want to assess if a linear model can accurately predict arrival times, or if traffic delays introduce non-linear variance.
+
+#### Method Justification:{.unnumbered}
+
+We use *Simple Linear Regression* to quantify the relationship between the independent variable (Departure) and the dependent variable (Arrival). Rather than a hypothesis test, the goal here is to assess the goodness of fit ($R^2$) to see how much of the variance in arrival time can be explained purely by the time of departure.
+
+### The "Rain Effect" on Crowding (Fisher's Exact Test)
+
+The bar chart (Figure \@ref(fig:stacked-bar-side)) indicated a strong dependency between rainy weather and bus overcrowding. We aim to calculate the statistical significance of this association.
+
+#### Method Justification:{.unnumbered}
+
+We are analyzing two categorical, binary variables (`rain_to_home` vs. `crowded_unilink_to_home`). This structure results in a $2 \times 2$ contingency table which Fisher’s Exact Test is well suited for.
+
+- $H_0$ (Null): Weather conditions and bus crowding are independent.
+
+- $H_a$ (Alternative): Rainy weather significantly increases the likelihood of the bus being crowded.
+
+### Weekday Crowding Variance (Pearson's Chi-Square)
+
+We investigate the specific phenomenon of the *"Thursday Rush."* Personal experience suggests that Thursdays are disproportionately crowded compared to other weekdays. This is probably because on Thursdays, I depart campus around 18:00 (6 PM), coinciding with the general close of business for local offices, while on other days I leave earlier.
+
+#### Method Justification:{.unnumbered}
+
+We examine the frequency of crowded buses across the distinct days of the week. Pearson’s Chi-square Test is chosen to determine if the distribution of crowded trips differs significantly from what we would expect by chance. Unlike Fisher's Exact Test (which we used for a $2 \times 2$ comparison), Chi-square is ideal for this $2 \times 4$ matrix (Crowded/Not Crowded vs. Mon/Wed/Thu/Fri).
+
+### Conditional Probability of Events: Rain vs. Crowding (Bayes's Theorem)
+
+While the previous tests determine if a relationship exists, we use Bayes's Theorem to quantify the dependency between the event **"It is Raining"** and the event **"The Bus is Crowded."** Specifically, we aim to measure how the presence of rain updates the probability of the bus being full.
+
+#### Method Justification:{.unnumbered}
+
+This is not a hypothesis test for statistical significance, but a Probability Update. We will calculate the **Prior Probability** ($P(Crowded)$), the baseline chance of a crowded bus on any random day, and compare it to the **Posterior Probability** ($P(Crowded | Rain)$).
+
+- If $P(Crowded|Rain) = P(Crowded)$, the events are **Independent** (Rain has no effect).
+
+- If $P(Crowded|Rain) > P(Crowded)$, the events are **Dependent**, and rain acts as a positive risk factor.
+
+
